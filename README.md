@@ -76,18 +76,42 @@ This project is provided for **educational and authorized security testing purpo
 
 ### Prohibited Use
 - Intercepting communications on networks you don't own
-- Attacking infrastructure without authorization
+- Attacking infrastructure without authorization (this build scans/replays only bytes, no radio)
 - Any activity that violates applicable laws or regulations
 - Commercial use without proper licensing
 
-### No Warranty
-This software is provided "AS IS" without warranty of any kind. The author is not responsible for any misuse or damage caused by this software.
+### Regulatory Framework (Passive Scanning)
+- **Federal Communications Act (47 U.S.C. § 333)**: Willful interference with authorized radio communications is prohibited.
+- **47 CFR Part 15**: Unauthorized intentional radiators are regulated; this scanner is byte-level only and emits nothing.
+- **CFAA / ECPA / Wiretap Act**: Scanning or capturing wireless frames without authorization may violate federal and state computer-access and interception laws.
 
-### Responsible Disclosure
-If you discover vulnerabilities using this tool, follow responsible disclosure practices:
-1. Report to the vendor/owner privately
-2. Allow reasonable time for remediation
-3. Do not exploit beyond proof of concept
+## Live Lab Test Plan
+
+Offline (this repo, no radio):
+1. `python3 firmware/wifi_scanner.py` — synthesize 10 lab APs (6 visible + 4 hidden SSIDs)
+   as bytes, parse them back, validate MACs; scan_ok=true, exit 0.
+2. `python3 firmware/wifi_scanner.py --gen-fixture reports/scan.pcap --pcap reports/scan.pcap
+   --json reports/w1.json` — fixture round-trip (exit 0).
+3. `python3 -m unittest discover -s tests` — byte-exact parse-back + MAC-validation tests (exit 0).
+
+Authorized lab:
+4. Capture 60s of authorized lab beacons (passive, linktype 105) and run
+   `--pcap captures/lab.pcap`; confirm visible/hidden inventory matches the lab channel plan.
+5. `green = permitted`: passive, unamplified scanning of devices you own; no frames injected.
+
+## Metrics
+
+- Beacon builder (byte-exact, frame_core): SSID IE (visible + zero-length hidden), interval 100,
+  FCS append/verify, seq monotonic
+- Scan pipeline: parse-back off the wire -> AP inventory {bssid, ssid, hidden, interval, seq, ts};
+  hidden SSIDs reported as `<hidden>` (preserved, not guessed)
+- MAC validation: 6-octet colon-form strict check; invalid MACs collected, scan_ok flag
+- Channel map: label distribution over 1/5/9/13/17; pcap path reports channels as unknown
+- pcap classic (linktype 105) fixture generate + scan; captures/ and reports/ gitignored
+- Offline: all beacons synthesized as bytes; no radio, no wall-clock data
+
+- Test suite: `python3 -m unittest discover -s tests`
+- Reports: `reports/` (gitignored)
 
 ## License
 
